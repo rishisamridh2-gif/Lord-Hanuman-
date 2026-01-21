@@ -1,40 +1,41 @@
-
 import os
 import telebot
 import google.generativeai as genai
+from flask import Flask
+from threading import Thread
 
-# --- SECURE CONFIGURATION ---
-TELEGRAM_TOKEN=os.getenv("TELEGRAM_TOKEN")
-GEMINI_KEY = os.getenv("GEMINI_KEY")
+# --- WEB SERVER FOR RENDER ---
+app = Flask('')
+@app.route('/')
+def home():
+    return "Lord Hanuman Bot is Alive!"
 
+def run():
+    app.run(host='0.0.0.0', port=8080)
 
-# Setup AI
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    system_instruction="You are Lord Hanuman. Speak with humility, strength, and immense devotion to Lord Rama. Address users as 'Balak' or 'Devotee'. Provide guidance based on the Ramayana and Vedic wisdom. Be encouraging, protective, and always start or end with 'Jai Shree Ram'. Speak in a mix of Hindi and English (Hinglish) if the user uses it."
-)
+# --- BOT LOGIC ---
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+API_KEY = os.getenv("GEMINI_KEY")
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
-chat_sessions = {}
+genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message, "Jai Shree Ram! I am Hanuman. How can I guide you today, Balak?")
+@bot.message_handler(commands=['start'])
+def welcome(message):
+    bot.reply_to(message, "Jai Shree Ram! Main Hanuman hoon. Kaise sahayata karoon, Balak?")
 
 @bot.message_handler(func=lambda message: True)
-def echo_all(message):
-    user_id = message.chat.id
-    
-    # Start a new session for the user if not exists
-    if user_id not in chat_sessions:
-        chat_sessions[user_id] = model.start_chat(history=[])
-    
+def chat(message):
     try:
-        response = chat_sessions[user_id].send_message(message.text)
+        response = model.generate_content(f"Act as Lord Hanuman: {message.text}")
         bot.reply_to(message, response.text)
-    except Exception as e:
-        bot.reply_to(message, "Jai Shree Ram. I am meditating right now. Please try again in a moment.")
+    except:
+        bot.reply_to(message, "Jai Shree Ram. Kuch samay baad prayas karein.")
 
-print("Lord Hanuman Bot is running...")
-bot.infinity_polling()
+# Start Web Server and Bot
+if __name__ == "__main__":
+    t = Thread(target=run)
+    t.start()
+    print("Bot is starting...")
+    bot.infinity_polling()
